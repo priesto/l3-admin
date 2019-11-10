@@ -1,0 +1,5 @@
+***************** ALERTES ********************
+
+L'une des machines monitorées vient d'effectuer un dépassement d'utilisation mémoire !
+
+***************** ALERTES ********************

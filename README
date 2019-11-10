@@ -1,0 +1,103 @@
+I - Collecte d'information
+    Au sein de cette partie, nous avons mis en place plusieurs sondes permettant de récupérer des informations sur
+    les machines monitorées.
+
+    Parmis les sondes mise en place, ont peut cité :
+        - Utilisation du cpu (à l'instant où le script est executé) : cpu.sh
+        - Utilisation de la mémoire RAM : mem.sh
+        - Utilisation du disque : disk.sh et disk.py (sonde mixte)
+        - Adresse ip : ip.sh
+        - Nombre de processus : processes.py
+        - Nombre d'utilisateurs connecté sur la machine : users.py
+        - Temps depuis lequelle la machine est allumé : uptime.py
+        - Nom de la machine : host.py
+
+    Un fichier principal (index.py) se charge de récupérer les informations des sondes et de créer un objet JSON qui
+    sera transmis au serveur, pour être stocké dans la base de donnée.
+
+    Un script (install.sh) permet également d'installer les différentes librairies et package nécessaire au bon
+    fonctionnement des différentes sondes. Ce script met également en place une tâche cron de transmettre les
+    informations à interval réguliers.
+
+    Librairies tiers utilisées :
+        - psutil
+
+
+
+
+
+II - Stockage et Collecte Web
+    Pour pouvoir stocker les données des sondes, nous avons créé un moteur de stockage qui accueillera donc les données
+    des sondes ainsi que les données retournées par le parser web.
+
+    Moteur de stockage :
+        Nous avons créer deux tables, une pour les sondes et une autre pour les alertes. A chaque fois que de nouvelles
+        informations sont disponibles, le moteur lit le fichier sur lequel sont stockées (alertes.json ou data.json) et
+        se charge de les insérer au sein d'une base de donnée de type sqlite.
+
+        Bonus :
+            - Nous avons mis en place un système de sauvegarde, qui se déclenche à chaque fois que de nouvelles données
+              sont insérées dans la base.
+            - Par conséquent, un système de restauration (restore.sh) à donc été mis en place, pour permettre de
+              restaurer une ancienne version de la base.
+            - Un sytème de nettoyage (clean.py) des données supérieur à 30 jours à également été mis en place
+            - Utilisation d'une base sans serveur (sqlite)
+
+    Parseur Web :
+        Le parseur récupère à interval régulier les alertes CERT et les insére dans la base de donnée au travers du
+        moteur de stockage. Une contrainte d'unicité à été ajoutée sur la table `alertes`, pour éviter de se
+        retrouver avec deux fois la même alerte.
+
+    Librairies tiers utilisées :
+        - BeautifulSoup
+        - requests
+        - sqlite3
+
+
+
+
+
+
+III - Affichage et Alerte
+    Cette partie est un script permettant au client d'avoir accès à l'ensemble des informations de chaque machines
+    monitorées et de prevenir l'administrateur en cas de situation de crise.
+
+    Script de visualisation :
+        Les dernières informations connues de chaque machine monitorées sont tout d'abord récupérées depuis la base
+        sqlite puis sont affichées à l'utilisateur. Une verification est ensuite effectuée pour savoir si il y a une
+        situation de crise, et si il y en une, alors un email est envoyé à l'administrateur.
+
+        En utilisant la librairie pygal, on affiche les données avec historique (mémoire, cpu, disque) sur un graphe.
+
+        La date de dernière communication est obtenu en effectuant une requête qui récupére toute les dates d'insertion
+        ordronné de manière croissant pour avoir la plus récente en premier.
+
+        Bonus :
+            - Un fichier `config_crise.sh` permet de modifier les critères de la situation de crise
+            - Des fichiers template permettent de modifier le contenu de l'email envoyé à l'administrateur.
+            - Les mails envoyés transitent par le serveur SMTP de l'université.
+    
+    Librairies tiers utilisées :
+        - pygal
+        - sqlite3
+
+
+
+
+
+
+IV - Communication
+    Dans cette partie, nous avons mis en place un serveur qui reste en écoute et attend les données transmises par les
+    sondes.
+
+    Communication :
+        Nous avons utilisé le module Flask pour mettre en place un serveur qui attend les requêtes HTTP, et lorsqu'il
+        y en a une, on stocke alors les données au sein d'un fichier `data.json` puis on fait appel au moteur de
+        stockage qui se charge alors de lire ce même fichier et de stocker ces informations dans la base de donnée.
+
+        Du côté des sondes, il a fallu utiliser le module requests pour transmettre les données, au format JSON, au
+        serveur.
+
+    Librairies tiers utilisées :
+        - Flask
+        - requests
